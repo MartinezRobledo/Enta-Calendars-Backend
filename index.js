@@ -23,6 +23,7 @@ app.use( express.json() );
 app.use('/api/auth', require('./routes/auth') );
 app.use('/api/templates', require('./routes/templates') );
 app.use('/api/holidays', require('./routes/holidays') );
+app.use('/api/calendars', require('./routes/calendars'));
 
 // Redirigir cualquier ruta a public.
 app.use('*', (req, resp) => {

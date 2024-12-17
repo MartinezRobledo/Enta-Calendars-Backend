@@ -5,10 +5,10 @@ const { generarJWT } = require('../helpers/jwt');
  
 const crearUsuario = async(req, res = response ) => {
 
-    const { email, password } = req.body;
+    const { name, password } = req.body;
 
     try {
-        let usuario = await Usuario.findOne({ email });
+        let usuario = await Usuario.findOne({ name });
 
         if ( usuario ) {
             return res.status(400).json({
@@ -47,12 +47,13 @@ const crearUsuario = async(req, res = response ) => {
 
 
 const loginUsuario = async(req, res = response ) => {
+    console.log(req.body); // <-- Esto te mostrará qué está llegando
 
-    const { email, password } = req.body;
+    const { name, password } = req.body;
 
     try {
         
-        const usuario = await Usuario.findOne({ email });
+        const usuario = await Usuario.findOne({ name });
 
         if ( !usuario ) {
             return res.status(400).json({
@@ -78,6 +79,7 @@ const loginUsuario = async(req, res = response ) => {
             ok: true,
             uid: usuario.id,
             name: usuario.name,
+            picture: usuario.picture,
             token
         })
 
@@ -100,11 +102,15 @@ const revalidarToken = async (req, res = response ) => {
     // Generar JWT
     const token = await generarJWT( uid, name );
 
+    const usuario = await Usuario.findOne({ name });
+    const { picture } = usuario;
+
     res.json({
         ok: true,
         token,
         name,
-        uid
+        uid,
+        picture,
     })
 }
 
