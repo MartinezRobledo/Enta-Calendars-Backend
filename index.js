@@ -25,10 +25,11 @@ app.use('/api/templates', require('./routes/templates') );
 app.use('/api/holidays', require('./routes/holidays') );
 app.use('/api/calendars', require('./routes/calendars'));
 
-// Redirigir cualquier ruta a public.
-app.use('*', (req, resp) => {
-    resp.sendFile( path.join( __dirname, 'public/index.html'));
+// Rutas no encontradas: devolver index.html (para SPAs)
+app.get('*', (req, resp) => {
+    resp.sendFile(path.resolve(__dirname, 'public', 'index.html'));
 });
+
 
 
 // Escuchar peticiones
