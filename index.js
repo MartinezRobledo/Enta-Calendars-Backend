@@ -14,7 +14,8 @@ dbConnection();
 app.use(cors())
 
 // Directorio Público
-app.use( express.static('public') );
+// app.use( express.static('public') );
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Lectura y parseo del body
 app.use( express.json() );
@@ -25,11 +26,10 @@ app.use('/api/templates', require('./routes/templates') );
 app.use('/api/holidays', require('./routes/holidays') );
 app.use('/api/calendars', require('./routes/calendars'));
 
-// Rutas no encontradas: devolver index.html (para SPAs)
-app.get('*', (req, resp) => {
-    resp.sendFile(path.resolve(__dirname, 'public', 'index.html'));
+// Redirigir cualquier ruta a public.
+app.use('*', (req, resp) => {
+    resp.sendFile( path.join( __dirname, 'public/index.html'));
 });
-
 
 
 // Escuchar peticiones
