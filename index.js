@@ -3,12 +3,16 @@ const path = require('path')
 require('dotenv').config();
 const cors = require('cors');
 const { dbConnection } = require('./database/config');
+const { crearRoles } = require('./libs/initialSetup');
 
 // Crear el servidor de express
 const app = express();
 
 // Base de datos
 dbConnection();
+
+// Crear Roles
+crearRoles();
 
 // CORS
 app.use(cors())

@@ -12,6 +12,10 @@ const UsuarioSchema = Schema({
     picture: {
         type: String,
     },
+    roles: {
+        type: [String],
+        required: true,
+    }
 });
 
 

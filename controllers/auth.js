@@ -2,10 +2,11 @@ const { response } = require('express');
 const bcrypt = require('bcryptjs');
 const Usuario = require('../models/Usuario');
 const { generarJWT } = require('../helpers/jwt');
+const Rol = require('../models/Rol');
  
 const crearUsuario = async(req, res = response ) => {
 
-    const { name, password } = req.body;
+    const { name, password, roles } = req.body;
 
     try {
         let usuario = await Usuario.findOne({ name });
@@ -23,6 +24,14 @@ const crearUsuario = async(req, res = response ) => {
         const salt = bcrypt.genSaltSync();
         usuario.password = bcrypt.hashSync( password, salt );
 
+        // Asignar el rol
+        if(roles) {
+            const rolesEncontrados = await Rol.find({ name: {$in: roles}});
+            usuario.roles = rolesEncontrados.map(rol => rol._id);
+        } else {
+            const rol = await Rol.findOne({name: "dev"});
+            usuario.roles = [rol._id];
+        }
 
         await usuario.save();
 
@@ -33,6 +42,7 @@ const crearUsuario = async(req, res = response ) => {
             ok: true,
             uid: usuario.id,
             name: usuario.name,
+            roles: usuario.roles,
             token
         })
         
