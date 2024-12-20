@@ -31,7 +31,7 @@ app.use('/api/holidays', require('./routes/holidays') );
 app.use('/api/calendars', require('./routes/calendars'));
 
 // Redirigir cualquier ruta a public.
-app.use('/*', (req, resp) => {
+app.use('*', (req, resp) => {
     resp.sendFile( path.join( __dirname, 'public/index.html'));
 });
 
