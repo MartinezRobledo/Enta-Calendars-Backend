@@ -6,7 +6,7 @@ const { Router } = require('express');
 const { validarJWT } = require('../middlewares/validar-jwt');
 const { validarCampos } = require('../middlewares/validar-campos');
 const { check } = require('express-validator');
-const { createCalendar, getCalendars, deleteCalendar } = require('../controllers/calendars');
+const { createCalendar, getCalendars, deleteCalendar, updateCalendar } = require('../controllers/calendars');
 
 const router = Router();
 
@@ -24,13 +24,19 @@ router.post(
     createCalendar
 );
 
+// Editar un calendario
+router.put(
+    '/',
+    updateCalendar
+);
+
 //Obtener calendarios
 router.get(
     '/:user',
     getCalendars
 );
 
-//Obtener calendarios
+//Borrar calendario
 router.delete(
     '/:id',
     deleteCalendar

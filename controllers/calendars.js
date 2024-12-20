@@ -40,6 +40,63 @@ const createCalendar = async (req, res) => {
     }
 };
 
+const updateCalendar = async (req, res) => {
+    try {
+        const {_id, calendario} = req.body;
+
+        // Validar que se realizaron cambios
+        const calendarioPrevio = await Calendars.findById(_id)
+        if(calendarioPrevio._id === calendario._id && calendarioPrevio.titleStore === calendario.titleStore){
+            return res.status(404).json({ 
+                ok: false,
+                msg: "No realizó ninguna modificación.", 
+            });
+        }
+
+        // Borrar en caso de haber habido cambios
+        const calendarioBorrado = await Calendars.findByIdAndDelete(_id);
+        if (!calendarioBorrado) {
+            return res.status(404).json({ 
+                ok: false,
+                msg: "Ocurrió un error inesperado, no se pudo realizar el cambio.", 
+            });
+        }
+
+        // Verifica si existe un calendario con el mismo ID
+        const existingById = await Calendars.findOne({ _id });
+        if (existingById) {
+            return res.status(400).json({
+                ok: false,
+                msg: 'Ya existe un calendario con el mismo ID.\nCalendario existente: '+existingById.titleStore,
+            });
+        }
+
+        // Verifica si existe un calendario con el mismo título y cliente
+        const existingByTitle = await Calendars.findOne({ titleStore, cliente });
+        if (existingByTitle) {
+            return res.status(400).json({
+                ok: false,
+                msg: 'Ya existe un calendario con el mismo título.',
+            });
+        }
+
+        //Guardar nuevo calendario
+        const nuevoCalendario = new Calendars(calendario)
+        await nuevoCalendario.save();
+        res.status(201).json({
+            ok: true,
+            calendar: nuevoCalendario,
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            ok: false,
+            msg: 'Error al guardar el calendario.',
+        });
+    }
+}
+
 const getCalendars = async (req, res) => {
     const { user } = req.params;
     console.log("USUARIO", user)
@@ -100,4 +157,5 @@ module.exports = {
     createCalendar,
     getCalendars,
     deleteCalendar,
+    updateCalendar,
 };
