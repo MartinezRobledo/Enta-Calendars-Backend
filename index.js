@@ -32,7 +32,7 @@ app.use('/api/calendars', require('./routes/calendars'));
 
 // Redirigir cualquier ruta a public.
 app.use('*', (req, resp) => {
-    resp.sendFile( path.join( __dirname, 'dist'));
+    resp.sendFile( path.join( __dirname, 'dist/index.html'));
 });
 
 
