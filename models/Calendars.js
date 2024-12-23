@@ -38,7 +38,6 @@ const CalendariosSchema = Schema({
                         },
                         byWeekday: {
                             type: Object, // Usar Map para objetos con pares clave-valor dinámicos
-                            // of: Number,
                             default: {}, // Valor por defecto
                         },
                         byMonthday: {
