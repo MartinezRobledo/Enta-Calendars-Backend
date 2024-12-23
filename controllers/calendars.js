@@ -25,6 +25,7 @@ const createCalendar = async (req, res) => {
 
         // Crea el nuevo calendario
         const newCalendar = new Calendars(req.body);
+        console.log("Nuevo calendario", newCalendar)
         await newCalendar.save();
 
         res.status(201).json({

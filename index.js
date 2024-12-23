@@ -35,14 +35,6 @@ app.use('*', (req, resp) => {
     resp.sendFile( path.join( __dirname, 'dist/index.html'));
 });
 
-app.use('/*', (req, resp) => {
-    resp.sendFile( path.join( __dirname, 'dist/index.html'));
-});
-
-app.use('/*/*', (req, resp) => {
-    resp.sendFile( path.join( __dirname, 'dist/index.html'));
-});
-
 // Escuchar peticiones
 app.listen( process.env.PORT, () => {
     console.log(`Servidor corriendo en puerto ${ process.env.PORT }`);
