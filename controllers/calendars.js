@@ -10,7 +10,7 @@ const createCalendar = async (req, res) => {
         if (existingById) {
             return res.status(400).json({
                 ok: false,
-                msg: 'Ya existe un calendario con el mismo ID.',
+                msg: 'Ya existe un calendario con el mismo ID.\nCalendario existente: ' + existingById.titleStore,
             });
         }
 
@@ -53,37 +53,24 @@ const updateCalendar = async (req, res) => {
             });
         }
 
+        // Verifica si existe un calendario con el mismo ID
+        const nuevoID = calendario._id
+        const titleStore = calendario.titleStore
+        const cliente = calendario.cliente
+        const existing = await Calendars.find({ nuevoID, titleStore, cliente });
+        if (existing.lenght === 0) {
+            return res.status(400).json({
+                ok: false,
+                msg: 'Ya existe un calendario con las mismas caracteristicas.\nCalendario existente: '+ existing.titleStore,
+            });
+        }
+
         // Borrar en caso de haber habido cambios
         const calendarioBorrado = await Calendars.findByIdAndDelete(_id);
         if (!calendarioBorrado) {
             return res.status(404).json({ 
                 ok: false,
                 msg: "Ocurrió un error inesperado, no se pudo realizar el cambio.", 
-            });
-        }
-
-        // Verifica si existe un calendario con el mismo ID
-        const nuevoID = calendario._id
-        const existingById = await Calendars.findOne({ nuevoID });
-        if (existingById) {
-            const restore = new Calendars(calendarioBorrado);
-            await restore.save();
-            return res.status(400).json({
-                ok: false,
-                msg: 'Ya existe un calendario con el mismo ID.\nCalendario existente: '+existingById.titleStore,
-            });
-        }
-
-        // Verifica si existe un calendario con el mismo título y cliente
-        const titleStore = calendario.titleStore
-        const cliente = calendario.cliente
-        const existingByTitle = await Calendars.findOne({ titleStore, cliente });
-        if (existingByTitle) {
-            const restore = new Calendars(calendarioBorrado);
-            await restore.save();
-            return res.status(400).json({
-                ok: false,
-                msg: 'Ya existe un calendario con el mismo título.',
             });
         }
 

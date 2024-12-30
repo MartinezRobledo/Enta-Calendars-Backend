@@ -18,7 +18,7 @@ router.post(
     '/',
     [
         check('titleStore','El titulo es obligatorio').not().isEmpty(),
-        check('capasStore','Las capas son obligatorias').not().isEmpty(),
+        check('añosStore','Los años son obligatorios').not().isEmpty(),
         validarCampos
     ],
     createCalendar
