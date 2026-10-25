@@ -1,132 +1,45 @@
 const { response } = require('express');
 const bcrypt = require('bcryptjs');
 const Usuario = require('../models/Usuario');
-const { generarJWT } = require('../helpers/jwt');
 const Rol = require('../models/Rol');
- 
-const crearUsuario = async(req, res = response ) => {
+const { generarJWT } = require('../helpers/jwt');
+const { canonical } = require('../helpers/roles');
+const { writeAudit } = require('../helpers/audit');
 
-    const { name, password, roles } = req.body;
+const getUserRoles = async (user) => {
+    const values = user.roles || [];
+    const ids = values.filter((value) => /^[a-f\d]{24}$/i.test(String(value)));
+    const docs = ids.length ? await Rol.find({ _id: { $in: ids } }).lean() : [];
+    return [...new Set(values.map((value) => canonical(docs.find((role) => String(role._id) === String(value))?.name || value)))];
+};
 
-    try {
-        let usuario = await Usuario.findOne({ name });
+const publicUser = async (user) => ({ uid: String(user._id), name: user.name, picture: user.picture, roles: await getUserRoles(user) });
 
-        if ( usuario ) {
-            return res.status(400).json({
-                ok: false,
-                msg: 'El usuario ya existe'
-            });
-        }
-
-        usuario = new Usuario( req.body );
-    
-        // Encriptar contraseña
-        const salt = bcrypt.genSaltSync();
-        usuario.password = bcrypt.hashSync( password, salt );
-
-        // Asignar el rol
-        if(roles) {
-            const rolesEncontrados = await Rol.find({ name: {$in: roles}});
-            usuario.roles = rolesEncontrados.map(rol => rol._id);
-        } else {
-            const rol = await Rol.findOne({name: "dev"});
-            usuario.roles = [rol._id];
-        }
-
-        await usuario.save();
-
-        // Generar JWT
-        const token = await generarJWT( usuario.id, usuario.name );
-    
-        res.status(201).json({
-            ok: true,
-            uid: usuario.id,
-            name: usuario.name,
-            roles: usuario.roles,
-            token
-        })
-        
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({
-            ok: false,
-            msg: 'Por favor hable con el administrador'
-        });
-    }
-}
-
-
-const loginUsuario = async(req, res = response ) => {
-    console.log(req.body); // <-- Esto te mostrará qué está llegando
-
+const loginUsuario = async (req, res = response) => {
     const { name, password } = req.body;
-
     try {
-        
         const usuario = await Usuario.findOne({ name });
-
-        if ( !usuario ) {
-            return res.status(400).json({
-                ok: false,
-                msg: 'El usuario no existe con ese email'
-            });
+        if (!usuario || usuario.active === false || !bcrypt.compareSync(password, usuario.password)) {
+            return res.status(401).json({ ok: false, msg: 'Usuario o contraseña incorrectos, o cuenta desactivada.' });
         }
-
-        // Confirmar los passwords
-        const validPassword = bcrypt.compareSync( password, usuario.password );
-
-        if ( !validPassword ) {
-            return res.status(400).json({
-                ok: false,
-                msg: 'Password incorrecto'
-            });
-        }
-
-        // Generar JWT
-        const token = await generarJWT( usuario.id, usuario.name );
-
-        res.json({
-            ok: true,
-            uid: usuario.id,
-            name: usuario.name,
-            picture: usuario.picture,
-            token
-        })
-
-
+        const userInfo = await publicUser(usuario);
+        const token = await generarJWT(usuario.id, usuario.name);
+        await writeAudit({ uid: usuario.id, user: usuario }, { action: 'login', entity: 'session', summary: 'Inicio de sesión' });
+        res.json({ ok: true, ...userInfo, token });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            ok: false,
-            msg: 'Por favor hable con el administrador'
-        });
+        console.error(error);
+        res.status(500).json({ ok: false, msg: 'No se pudo iniciar sesión.' });
     }
+};
 
-}
+const revalidarToken = async (req, res = response) => {
+    const token = await generarJWT(req.uid, req.name);
+    res.json({ ok: true, ...(await publicUser(req.user)), token });
+};
 
+const logoutUsuario = async (req, res = response) => {
+    await writeAudit(req, { action: 'logout', entity: 'session', summary: 'Cerró sesión' });
+    res.json({ ok: true });
+};
 
-const revalidarToken = async (req, res = response ) => {
-
-    const { uid, name } = req;
-
-    // Generar JWT
-    const token = await generarJWT( uid, name );
-
-    const usuario = await Usuario.findOne({ name });
-    const { picture } = usuario;
-
-    res.json({
-        ok: true,
-        token,
-        name,
-        uid,
-        picture,
-    })
-}
-
-
-module.exports = {
-    crearUsuario,
-    loginUsuario,
-    revalidarToken
-}
+module.exports = { loginUsuario, revalidarToken, logoutUsuario };

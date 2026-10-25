@@ -4,9 +4,10 @@
 */
 const { Router } = require('express');
 const { validarJWT } = require('../middlewares/validar-jwt');
+const { requireRole } = require('../middlewares/require-role');
 const { validarCampos } = require('../middlewares/validar-campos');
 const { check } = require('express-validator');
-const { createCalendar, getCalendars, deleteCalendar, updateCalendar } = require('../controllers/calendars');
+const { createCalendar, getCalendars, getCalendar, deleteCalendar, updateCalendar, restoreCalendar } = require('../controllers/calendars');
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.put(
 );
 
 //Obtener calendarios
+router.get('/:user/:id', getCalendar);
 router.get(
     '/:user',
     getCalendars
@@ -41,5 +43,7 @@ router.delete(
     '/:id',
     deleteCalendar
 );
+
+router.post('/restore/:id', requireRole('gerente', 'lider'), restoreCalendar);
 
 module.exports = router;

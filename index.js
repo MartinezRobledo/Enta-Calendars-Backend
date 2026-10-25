@@ -8,12 +8,6 @@ const { crearRoles } = require('./libs/initialSetup');
 // Crear el servidor de express
 const app = express();
 
-// Base de datos
-dbConnection();
-
-// Crear Roles
-crearRoles();
-
 // CORS
 app.use(cors())
 
@@ -26,6 +20,8 @@ app.use( express.json() );
 
 // Rutas
 app.use('/api/auth', require('./routes/auth') );
+app.use('/api/users', require('./routes/users'));
+app.use('/api/audit', require('./routes/audit'));
 app.use('/api/templates', require('./routes/templates') );
 app.use('/api/holidays', require('./routes/holidays') );
 app.use('/api/calendars', require('./routes/calendars'));
@@ -36,9 +32,18 @@ app.use('*', (req, resp) => {
 });
 
 // Escuchar peticiones
-app.listen( process.env.PORT, () => {
-    console.log(`Servidor corriendo en puerto ${ process.env.PORT }`);
-});
+const startServer = async () => {
+    try {
+        await dbConnection();
+        await crearRoles();
+        app.listen(process.env.PORT, () => console.log(`Servidor corriendo en puerto ${process.env.PORT}`));
+    } catch (error) {
+        console.error('No se pudo iniciar el servidor:', error.message);
+        process.exit(1);
+    }
+};
+
+startServer();
 
 
 

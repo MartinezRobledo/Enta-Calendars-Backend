@@ -15,8 +15,9 @@ const UsuarioSchema = Schema({
     roles: {
         type: [String],
         required: true,
-    }
-});
+    },
+    active: { type: Boolean, default: true },
+}, { timestamps: true });
 
 
 module.exports = model('Usuario', UsuarioSchema );

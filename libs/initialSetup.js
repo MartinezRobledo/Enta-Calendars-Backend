@@ -2,21 +2,10 @@ const Rol = require('../models/Rol');
 
 const crearRoles = async () => {
     try {
-        const count = await Rol.estimatedDocumentCount(); // Espera el conteo
-        
-        if (Number(count) > 0) {
-            return; // Si ya hay roles, no continúa creando más
-        }
-
-        const values = await Promise.all([
-            new Rol({ name: 'dev' }).save(),
-            new Rol({ name: 'lead' }).save(),
-            new Rol({ name: 'admin' }).save(),
-        ]);
-
-        console.log(values);
+        await Promise.all(['gerente', 'lider', 'desarrollador'].map((name) => Rol.updateOne({ name }, { $setOnInsert: { name } }, { upsert: true })));
     } catch (error) {
         console.error(error);
+        throw error;
     }
 };
 

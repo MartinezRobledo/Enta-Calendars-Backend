@@ -104,7 +104,10 @@ const CalendariosNewSchema = Schema({
     fechaActualizacion: {
         type: Date,
         default: new Date()
-    }
+    },
+    deletedAt: { type: Date, default: null, index: true },
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'Usuario', default: null },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'Usuario', default: null },
 });
 
 // Elimina __v del resultado y usa _id como id
