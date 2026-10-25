@@ -1,4 +1,4 @@
-# Backend MERN - Calendar
+# Enta Tools · Backend del módulo Calendarios
 # Usuarios, roles y auditoría
 
 El registro público está deshabilitado. Para crear el primer gerente en una base de datos nueva, desde esta carpeta ejecuta `npm run bootstrap-manager` en una terminal interactiva. El comando pide el nombre y una contraseña oculta (mínimo 12 caracteres) y se niega a crear otro gerente si ya existe uno activo.
