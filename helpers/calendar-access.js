@@ -1,10 +1,6 @@
-const { roleNames } = require('./roles');
-
-const getAccessibleCalendarOwners = async (user) => {
-    const roles = roleNames(user);
-    if (roles.includes('gerente')) return null;
-    return [user.name];
-};
+// Calendar ownership represents a customer, not an application user. All
+// authenticated team members can work across the existing customer accounts.
+const getAccessibleCalendarOwners = async () => null;
 
 const canAccessCalendar = async (user, calendar) => {
     const owners = await getAccessibleCalendarOwners(user);

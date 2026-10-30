@@ -2,6 +2,7 @@ const { response } = require('express');
 const Feriados = require('../models/Feriados');
 const HolidayCountry = require('../models/HolidayCountry');
 const { writeAudit, withAuditTransaction } = require('../helpers/audit');
+const { argentinaYear, invalidateHolidayCache, maintainAllCalendars } = require('../services/calendar-maintenance');
 
 const normalizeCode = (value) => String(value || '').trim().toUpperCase();
 const countryKeyFromName = (value) => String(value || '')
@@ -117,7 +118,18 @@ const saveCountryYear = async (req, res = response) => {
             await writeAudit(req, { action: 'holiday.save', entity: 'holiday-year', entityId: `${countryCode}-${year}`, summary: `Actualizó los feriados de ${country.name} para ${year}`, metadata: { countryCode, countryName: country.name, year, dates } }, session);
             return saved;
         });
-        res.json({ ok: true, holiday: { countryCode, countryName: country.name, year, dates, lastModified: doc.lastModified } });
+        let calendarMaintenance = null;
+        // Calendars currently consume Argentina's holiday set through the legacy API.
+        if (countryCode === 'AR') {
+            invalidateHolidayCache(year);
+            try {
+                calendarMaintenance = await maintainAllCalendars({ reason: `holiday_update:${countryCode}`, currentYear: argentinaYear(), year });
+            } catch (maintenanceError) {
+                console.error('Se guardaron los feriados, pero no se pudieron recalcular todos los calendarios:', maintenanceError.message);
+                calendarMaintenance = { failed: 1, error: 'El mantenimiento de calendarios quedó pendiente.' };
+            }
+        }
+        res.json({ ok: true, holiday: { countryCode, countryName: country.name, year, dates, lastModified: doc.lastModified }, calendarMaintenance });
     } catch (error) { console.error(error); res.status(500).json({ ok: false, msg: 'No se pudieron guardar los feriados.' }); }
 };
 
@@ -126,6 +138,7 @@ const obtenerFeriados = async (req, res = response) => {
     const year = Number(req.params.id);
     if (!isYear(year)) return res.status(400).json({ ok: false, msg: 'Año no válido.' });
     try {
+        await ensureArgentina();
         const country = await HolidayCountry.findOne({ countryCode: 'AR' }).lean();
         if (!country) return res.status(404).json({ ok: false, msg: 'No hay feriados de Argentina configurados.' });
         let doc = await Feriados.findOne({ countryCode: 'AR', year }).lean();

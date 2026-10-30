@@ -19,7 +19,7 @@ const writeAudit = async (req, { action, entity, entityId = null, summary, metad
         if (session) throw new Error('No se puede confirmar una mutación sin su actor de auditoría.');
         return;
     }
-    const entry = { actorId: req.system ? null : req.uid, actorName: req.system ? 'Sistema (bootstrap)' : req.user.name, action, entity, entityId: entityId == null ? null : String(entityId), summary, metadata };
+    const entry = { actorId: req.system ? null : req.uid, actorName: req.system ? (req.systemName || 'Sistema (bootstrap)') : req.user.name, action, entity, entityId: entityId == null ? null : String(entityId), summary, metadata };
     if (session) await AuditLog.create([entry], { session });
     else await AuditLog.create(entry);
 };

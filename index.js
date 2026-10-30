@@ -4,6 +4,7 @@ require('dotenv').config();
 const cors = require('cors');
 const { dbConnection } = require('./database/config');
 const { crearRoles } = require('./libs/initialSetup');
+const { maintainAllCalendars, startCalendarMaintenanceScheduler } = require('./services/calendar-maintenance');
 
 // Crear el servidor de express
 const app = express();
@@ -37,7 +38,13 @@ const startServer = async () => {
     try {
         await dbConnection();
         await crearRoles();
-        app.listen(process.env.PORT, () => console.log(`Servidor corriendo en puerto ${process.env.PORT}`));
+        startCalendarMaintenanceScheduler();
+        app.listen(process.env.PORT, () => {
+            console.log(`Servidor corriendo en puerto ${process.env.PORT}`);
+            maintainAllCalendars({ reason: 'startup' })
+                .then((maintenance) => console.log('Mantenimiento inicial de calendarios finalizado:', maintenance))
+                .catch((error) => console.error('No se pudo completar el mantenimiento inicial de calendarios:', error.message));
+        });
     } catch (error) {
         console.error('No se pudo iniciar el servidor:', error.message);
         process.exit(1);

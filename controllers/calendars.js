@@ -1,18 +1,28 @@
 const Calendars = require('../models/Calendars');
 const { writeAudit, withAuditTransaction } = require('../helpers/audit');
 const { getAccessibleCalendarOwners, canAccessCalendar } = require('../helpers/calendar-access');
+const { argentinaYear, completeYears, ensureCalendarYears, writeSystemMaintenanceAudit } = require('../services/calendar-maintenance');
 
 const createCalendar = async (req, res) => {
     try {
         const { _id, titleStore } = req.body;
-        const cliente = req.user.name;
+        const cliente = String(req.body.cliente || req.user.name).trim();
         if (!_id) return res.status(400).json({ ok: false, msg: 'El identificador del calendario es obligatorio.' });
+        if (!cliente) return res.status(400).json({ ok: false, msg: 'El cliente es obligatorio.' });
+        const existingClients = await Calendars.distinct('cliente', { deletedAt: null });
+        if (existingClients.length && !existingClients.includes(cliente)) {
+            return res.status(400).json({ ok: false, msg: 'Selecciona un cliente existente.' });
+        }
         if (await Calendars.findById(_id)) return res.status(409).json({ ok: false, msg: 'Ya existe un calendario con el mismo ID.' });
         if (await Calendars.findOne({ titleStore, cliente, deletedAt: null })) return res.status(409).json({ ok: false, msg: 'Ya existe un calendario con el mismo título.' });
+        const source = { ...req.body, cliente };
+        const currentYear = argentinaYear();
+        const completion = await completeYears(source, currentYear, { recalculateYears: [currentYear - 1, currentYear, currentYear + 1] });
         const calendar = await withAuditTransaction(async (session) => {
-            const created = new Calendars({ ...req.body, cliente, updatedBy: req.uid });
+            const created = new Calendars({ ...source, añosStore: completion.calendar.añosStore, updatedBy: req.uid });
             await created.save({ session });
             await writeAudit(req, { action: 'calendar.create', entity: 'calendar', entityId: created._id, summary: `Creó el calendario ${created.titleStore}`, metadata: { cliente: created.cliente, configuration: created.añosStore } }, session);
+            if (completion.changed) await writeSystemMaintenanceAudit(created, completion, 'calendar_create', session);
             return created;
         });
         res.status(201).json({ ok: true, calendar });
@@ -29,27 +39,47 @@ const updateCalendar = async (req, res) => {
         const current = await Calendars.findOne({ _id, deletedAt: null });
         if (!current) return res.status(404).json({ ok: false, msg: 'Calendario no encontrado.' });
         if (!(await canAccessCalendar(req.user, current))) return res.status(403).json({ ok: false, msg: 'No tienes acceso a este calendario.' });
-        const calendarFields = {
+        const submittedFields = {
             titleStore: calendario.titleStore,
             añosStore: calendario.añosStore,
             cliente: current.cliente,
         };
+        const currentYear = argentinaYear();
+        const completion = await completeYears(
+            { ...current.toObject(), ...submittedFields },
+            currentYear,
+            { recalculateYears: [currentYear - 1, currentYear, currentYear + 1] }
+        );
+        const calendarFields = { ...submittedFields, añosStore: completion.calendar.añosStore };
         const updated = { ...calendarFields, updatedBy: req.uid, fechaActualizacion: new Date() };
         if (await Calendars.exists({ _id: { $ne: current._id }, titleStore: updated.titleStore, cliente: updated.cliente, deletedAt: null })) {
             return res.status(409).json({ ok: false, msg: 'Ya existe un calendario activo con ese título para el cliente.' });
         }
         const previous = current.toObject();
-        const changes = Object.fromEntries(Object.entries(calendarFields).filter(([key, value]) => JSON.stringify(previous[key]) !== JSON.stringify(value)).map(([key, value]) => [key, { before: previous[key] ?? null, after: value }]));
+        const changes = Object.fromEntries(Object.entries(submittedFields).filter(([key, value]) => JSON.stringify(previous[key]) !== JSON.stringify(value)).map(([key, value]) => [key, { before: previous[key] ?? null, after: value }]));
         const saved = await withAuditTransaction(async (session) => {
             const updatedCalendar = await Calendars.findByIdAndUpdate(current._id, { $set: updated }, { new: true, runValidators: true, session });
             if (!updatedCalendar) throw new Error('El calendario dejó de estar disponible durante la actualización.');
             await writeAudit(req, { action: 'calendar.update', entity: 'calendar', entityId: updatedCalendar._id, summary: `Actualizó el calendario ${updatedCalendar.titleStore}`, metadata: { cliente: updatedCalendar.cliente, changes } }, session);
+            if (completion.changed) await writeSystemMaintenanceAudit(updatedCalendar, completion, 'calendar_update', session);
             return updatedCalendar;
         });
         res.json({ ok: true, calendar: saved });
     } catch (error) {
         console.error(error);
         res.status(500).json({ ok: false, msg: 'Error al actualizar el calendario.' });
+    }
+};
+
+const getCalendarClients = async (req, res) => {
+    try {
+        const clients = (await Calendars.distinct('cliente', { deletedAt: null }))
+            .filter((client) => typeof client === 'string' && client.trim())
+            .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+        res.json({ ok: true, clients });
+    } catch (error) {
+        console.error('No se pudieron obtener los clientes:', error.message);
+        res.status(500).json({ ok: false, msg: 'No se pudieron obtener los clientes.' });
     }
 };
 
@@ -61,7 +91,8 @@ const getCalendars = async (req, res) => {
         const requestedLimit = Number.parseInt(req.query.limit, 10) || 48;
         const limit = Math.min(100, Math.max(1, requestedLimit));
         const search = String(req.query.search || '').trim();
-        const filter = { cliente: req.params.user, deletedAt: null };
+        const filter = { deletedAt: null };
+        if (req.params.user !== 'all') filter.cliente = req.params.user;
 
         if (search) {
             const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -93,7 +124,8 @@ const getCalendar = async (req, res) => {
         if (!calendar) return res.status(404).json({ ok: false, msg: 'Calendario no encontrado.' });
         if (calendar.cliente !== req.params.user) return res.status(404).json({ ok: false, msg: 'Calendario no encontrado.' });
         if (!(await canAccessCalendar(req.user, calendar))) return res.status(403).json({ ok: false, msg: 'No tienes acceso a este calendario.' });
-        res.json({ ok: true, calendar });
+        const maintenance = await ensureCalendarYears(calendar._id, { reason: 'calendar_open' });
+        res.json({ ok: true, calendar: maintenance.calendar || calendar });
     } catch (error) {
         console.error('No se pudo obtener el calendario:', error.message);
         res.status(500).json({ ok: false, msg: 'No se pudo obtener el calendario.' });
@@ -134,11 +166,12 @@ const restoreCalendar = async (req, res) => {
             return restored;
         });
         if (!calendar) return res.status(404).json({ ok: false, msg: 'No se encontró un calendario eliminado con ese ID.' });
-        res.json({ ok: true, calendar });
+        const maintenance = await ensureCalendarYears(calendar._id, { reason: 'calendar_restore' });
+        res.json({ ok: true, calendar: maintenance.calendar || calendar });
     } catch (error) {
         console.error(error);
         res.status(500).json({ ok: false, msg: 'No se pudo restaurar el calendario.' });
     }
 };
 
-module.exports = { createCalendar, getCalendars, getCalendar, deleteCalendar, updateCalendar, restoreCalendar };
+module.exports = { createCalendar, getCalendarClients, getCalendars, getCalendar, deleteCalendar, updateCalendar, restoreCalendar };

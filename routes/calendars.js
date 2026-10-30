@@ -7,7 +7,7 @@ const { validarJWT } = require('../middlewares/validar-jwt');
 const { requireRole } = require('../middlewares/require-role');
 const { validarCampos } = require('../middlewares/validar-campos');
 const { check } = require('express-validator');
-const { createCalendar, getCalendars, getCalendar, deleteCalendar, updateCalendar, restoreCalendar } = require('../controllers/calendars');
+const { createCalendar, getCalendarClients, getCalendars, getCalendar, deleteCalendar, updateCalendar, restoreCalendar } = require('../controllers/calendars');
 
 const router = Router();
 
@@ -32,6 +32,7 @@ router.put(
 );
 
 //Obtener calendarios
+router.get('/clients', getCalendarClients);
 router.get('/:user/:id', getCalendar);
 router.get(
     '/:user',
