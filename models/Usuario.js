@@ -17,6 +17,10 @@ const UsuarioSchema = Schema({
         required: true,
     },
     active: { type: Boolean, default: true },
+    automationAnywhereFixedScheduleIds: {
+        type: [String],
+        default: [],
+    },
 }, { timestamps: true });
 
 

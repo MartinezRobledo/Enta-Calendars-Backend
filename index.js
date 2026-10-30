@@ -25,6 +25,7 @@ app.use('/api/audit', require('./routes/audit'));
 app.use('/api/templates', require('./routes/templates') );
 app.use('/api/holidays', require('./routes/holidays') );
 app.use('/api/calendars', require('./routes/calendars'));
+app.use('/api/integrations', require('./routes/integrations'));
 
 // Redirigir cualquier ruta a public.
 app.use('*', (req, resp) => {
